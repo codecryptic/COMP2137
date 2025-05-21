@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set hostname
-sudo hostnamectl set-hostname pc123456789
+sudo hostnamectl set-hostname pc200294083
 
 # Set timezone
 sudo timedatectl set-timezone America/Toronto
