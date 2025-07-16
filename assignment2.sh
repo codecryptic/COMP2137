@@ -7,12 +7,19 @@ set -euo pipefail
 # Start message
 echo "=== Assignment2 Script Starting ==="
 
-# Netplan configuration
-echo "-- Backing up existing netplan --"
-cp /etc/netplan/01-netcfg.yaml /etc/netplan/01-netcfg.yaml.bak
+# 1. Netplan configuration
+echo "-- Locating existing netplan file --"
+NETPLAN_FILE=$(ls /etc/netplan/*.yaml | head -n1)
+if [[ -z "$NETPLAN_FILE" ]]; then
+  echo "[ERROR] No netplan file found in /etc/netplan" >&2
+  exit 1
+fi
+
+echo "-- Backing up $NETPLAN_FILE --"
+cp "$NETPLAN_FILE" "${NETPLAN_FILE}.bak"
 
 echo "-- Writing new netplan configuration --"
-cat > /etc/netplan/01-netcfg.yaml <<EOF
+cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   renderer: networkd
@@ -28,12 +35,12 @@ EOF
 echo "-- Applying netplan --"
 netplan apply
 
-# /etc/hosts update
+# 2. /etc/hosts update
 echo "-- Updating /etc/hosts --"
 sed -i '/server1/d' /etc/hosts
 echo "192.168.16.21 server1" >> /etc/hosts
 
-# Install and start services
+# 3. Install and start services
 echo "-- Installing apache2 and squid --"
 apt-get update
 apt-get install -y apache2 squid
@@ -44,7 +51,7 @@ for svc in apache2 squid; do
   systemctl restart "$svc"
 done
 
-# User accounts and SSH keys
+# 4. User accounts and SSH keys
 echo "-- Creating user accounts and setting up SSH keys --"
 USERS=(dennis aubrey captain snibbles brownie scooter sandy perrier cindy tiger yoda)
 den_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG4rT3vTt99Ox5kndS4HmgTrKBT8SKzhK4rhGkEVGlCI student@generic-vm"
@@ -68,7 +75,7 @@ for user in "${USERS[@]}"; do
   chmod 700 "$ssh_dir"
   chown "$user:$user" "$ssh_dir"
 
-  # Generate user SSH keys if missing
+  # Generate SSH keys if missing
   if [[ ! -f "$ssh_dir/id_rsa.pub" ]]; then
     sudo -u "$user" ssh-keygen -t rsa -b 2048 -f "$ssh_dir/id_rsa" -N "" -q
     echo "Generated RSA key for $user"
@@ -88,7 +95,7 @@ auth_keys="$ssh_dir/authorized_keys"
     echo "Imported custom keys for $user"
   fi
 
-  # Add dennis external key
+  # Add external dennis key
   if [[ "$user" == "dennis" ]]; then
     grep -qxF "$den_key" "$auth_keys" || echo "$den_key" >> "$auth_keys"
   fi
